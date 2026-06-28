@@ -62,7 +62,7 @@ def run_collect_and_store() -> None:
 
 with DAG(
     dag_id="seoul_ppltn_collect",
-    schedule_interval="*/5 * * * *",
+    schedule="*/5 * * * *",
     start_date=datetime(2026, 6, 28),
     catchup=False,
 ) as dag:

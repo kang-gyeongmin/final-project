@@ -14,3 +14,6 @@ wheels/
 
 # Collected raw data (local-disk staging before R2)
 data/raw/
+
+# Local Claude Code settings
+.claude/

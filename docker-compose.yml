@@ -1,50 +1,132 @@
-# docker-compose.yml
+name: seoul-citydata
+
 x-airflow-common: &airflow-common
-  image: apache/airflow:2.10.5
-  environment:
+  image: seoul-citydata-airflow:local
+  build:
+    context: .
+    dockerfile: Dockerfile.airflow
+  env_file:
+    - .env
+  environment: &airflow-common-env
     AIRFLOW__CORE__EXECUTOR: LocalExecutor
-    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
+    AIRFLOW__CORE__AUTH_MANAGER: airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager
+    AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "true"
+    AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW_FERNET_KEY}
     AIRFLOW__CORE__LOAD_EXAMPLES: "false"
-    _PIP_ADDITIONAL_REQUIREMENTS: "requests boto3 python-dotenv"
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres/${POSTGRES_DB}
+    AIRFLOW__LOGGING__LOGGING_LEVEL: INFO
+    AIRFLOW__API_AUTH__JWT_SECRET: ${AIRFLOW_SECRET_KEY}
+    AIRFLOW__API_AUTH__JWT_ISSUER: airflow
+    AIRFLOW__CORE__EXECUTION_API_SERVER_URL: http://airflow-apiserver:8080/execution/
+    AIRFLOW__SCHEDULER__ENABLE_HEALTH_CHECK: "true"
+    PYTHONPATH: /opt/airflow/project
     SEOUL_API_KEY: ${SEOUL_API_KEY}
     R2_ACCOUNT_ID: ${R2_ACCOUNT_ID}
     R2_ACCESS_KEY_ID: ${R2_ACCESS_KEY_ID}
     R2_SECRET_ACCESS_KEY: ${R2_SECRET_ACCESS_KEY}
     R2_BUCKET_NAME: ${R2_BUCKET_NAME}
-    PYTHONPATH: /opt/airflow/project
+  user: "${AIRFLOW_UID}:0"
   volumes:
-    - ./dags:/opt/airflow/dags
+    - ./dags:/opt/airflow/dags:ro
     - ./collectors:/opt/airflow/project/collectors
     - ./data:/opt/airflow/project/data
-    - airflow-logs:/opt/airflow/logs
-  depends_on:
-    - postgres
+    - airflow_logs:/opt/airflow/logs
+  networks:
+    - seoul_net
 
 services:
   postgres:
-    image: postgres:16
+    image: postgres:16-alpine
+    env_file:
+      - .env
     environment:
-      POSTGRES_USER: airflow
-      POSTGRES_PASSWORD: airflow
-      POSTGRES_DB: airflow
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
     volumes:
-      - postgres-db:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - seoul_net
 
   airflow-init:
     <<: *airflow-common
     entrypoint: /bin/bash
-    command: -c "airflow db migrate && airflow users create --username admin --password admin --firstname admin --lastname admin --role Admin --email admin@example.com"
+    command:
+      - -c
+      - |
+        mkdir -p /opt/airflow/logs /opt/airflow/dags /opt/airflow/plugins /opt/airflow/config
+        chown -R "$${AIRFLOW_UID}:0" /opt/airflow/logs /opt/airflow/plugins /opt/airflow/config
+        /entrypoint airflow db migrate
+        /entrypoint airflow users create \
+          --username "$${AIRFLOW_ADMIN_USERNAME}" \
+          --firstname Admin \
+          --lastname User \
+          --role Admin \
+          --email "$${AIRFLOW_ADMIN_EMAIL}" \
+          --password "$${AIRFLOW_ADMIN_PASSWORD}" || true
+    user: "0:0"
+    depends_on:
+      postgres:
+        condition: service_healthy
 
-  airflow-webserver:
+  airflow-apiserver:
     <<: *airflow-common
-    command: webserver
+    command: api-server
     ports:
       - "8080:8080"
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8080/api/v2/monitor/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    depends_on:
+      airflow-init:
+        condition: service_completed_successfully
 
   airflow-scheduler:
     <<: *airflow-common
     command: scheduler
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8974/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    depends_on:
+      airflow-init:
+        condition: service_completed_successfully
+      airflow-apiserver:
+        condition: service_healthy
+
+  airflow-dag-processor:
+    <<: *airflow-common
+    command: dag-processor
+    depends_on:
+      airflow-init:
+        condition: service_completed_successfully
+      airflow-apiserver:
+        condition: service_healthy
+
+  airflow-triggerer:
+    <<: *airflow-common
+    command: triggerer
+    depends_on:
+      airflow-init:
+        condition: service_completed_successfully
+      airflow-apiserver:
+        condition: service_healthy
 
 volumes:
-  postgres-db:
-  airflow-logs:
+  postgres_data:
+  airflow_logs:
+
+networks:
+  seoul_net:
+    name: seoul_net
