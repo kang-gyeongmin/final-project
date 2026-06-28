@@ -17,11 +17,23 @@ AREAS_FILE = PROJECT_ROOT / "collectors" / "areas.txt"
 RAW_DATA_DIR = PROJECT_ROOT / "data" / "raw"
 
 
+class _BrokenR2Client:
+    def __init__(self, error: Exception):
+        self._error = error
+
+    def put_object(self, **kwargs):
+        raise self._error
+
+
 def run_collect_and_store() -> None:
     api_key = os.environ["SEOUL_API_KEY"]
     r2_bucket = os.environ.get("R2_BUCKET_NAME", "")
     area_names = load_areas(AREAS_FILE)
-    r2_client = get_r2_client()
+    try:
+        r2_client = get_r2_client()
+    except Exception as exc:
+        logger.warning("failed to construct R2 client, all R2 uploads will fail until R2_* env vars are set: %s", exc)
+        r2_client = _BrokenR2Client(exc)
 
     results = collect_and_store(
         area_names=area_names,
