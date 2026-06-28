@@ -44,14 +44,14 @@ def test_collect_all_fetches_and_saves_each_area(tmp_path: Path):
     )
 
     assert result_paths == [
-        tmp_path / "2026-06-26" / "강남역_151800.json",
-        tmp_path / "2026-06-26" / "광화문·덕수궁_151800.json",
+        tmp_path / "2026-06-26" / "강남역.json",
+        tmp_path / "2026-06-26" / "광화문·덕수궁.json",
     ]
     for path in result_paths:
         assert path.exists()
 
 
-def test_save_raw_writes_json_under_date_and_area_named_file(tmp_path: Path):
+def test_save_raw_creates_file_with_single_entry_when_new(tmp_path: Path):
     payload = {"foo": "bar"}
     fetched_at = datetime(2026, 6, 26, 15, 18, 0)
 
@@ -62,8 +62,25 @@ def test_save_raw_writes_json_under_date_and_area_named_file(tmp_path: Path):
         payload=payload,
     )
 
-    assert result_path == tmp_path / "2026-06-26" / "광화문·덕수궁_151800.json"
-    assert json.loads(result_path.read_text(encoding="utf-8")) == payload
+    assert result_path == tmp_path / "2026-06-26" / "광화문·덕수궁.json"
+    assert json.loads(result_path.read_text(encoding="utf-8")) == [
+        {"fetched_at": "2026-06-26T15:18:00", "payload": payload}
+    ]
+
+
+def test_save_raw_appends_entry_when_file_already_exists(tmp_path: Path):
+    area_name = "광화문·덕수궁"
+    first_at = datetime(2026, 6, 26, 15, 18, 0)
+    second_at = datetime(2026, 6, 26, 15, 23, 0)
+
+    save_raw(base_dir=tmp_path, area_name=area_name, fetched_at=first_at, payload={"n": 1})
+    result_path = save_raw(base_dir=tmp_path, area_name=area_name, fetched_at=second_at, payload={"n": 2})
+
+    assert result_path == tmp_path / "2026-06-26" / "광화문·덕수궁.json"
+    assert json.loads(result_path.read_text(encoding="utf-8")) == [
+        {"fetched_at": "2026-06-26T15:18:00", "payload": {"n": 1}},
+        {"fetched_at": "2026-06-26T15:23:00", "payload": {"n": 2}},
+    ]
 
 
 def test_build_url_url_encodes_korean_area_name():
@@ -121,14 +138,14 @@ def test_collect_and_store_saves_locally_and_uploads_to_r2(tmp_path: Path):
     assert results == [
         {
             "area_name": "강남역",
-            "local_path": tmp_path / "2026-06-26" / "강남역_151800.json",
-            "r2_key": "raw/2026-06-26/강남역_151800.json",
+            "local_path": tmp_path / "2026-06-26" / "강남역.json",
+            "r2_key": "raw/2026-06-26/15/18/강남역.json",
             "error": None,
         },
         {
             "area_name": "광화문·덕수궁",
-            "local_path": tmp_path / "2026-06-26" / "광화문·덕수궁_151800.json",
-            "r2_key": "raw/2026-06-26/광화문·덕수궁_151800.json",
+            "local_path": tmp_path / "2026-06-26" / "광화문·덕수궁.json",
+            "r2_key": "raw/2026-06-26/15/18/광화문·덕수궁.json",
             "error": None,
         },
     ]
@@ -140,7 +157,7 @@ def test_collect_and_store_keeps_local_save_when_r2_upload_fails(tmp_path: Path)
         return FakeResponse({"url": url})
 
     fetched_at = datetime(2026, 6, 26, 15, 18, 0)
-    r2_client = FakeR2Client(fail_keys={"raw/2026-06-26/강남역_151800.json"})
+    r2_client = FakeR2Client(fail_keys={"raw/2026-06-26/15/18/강남역.json"})
 
     results = collect_and_store(
         area_names=["강남역"],
@@ -152,7 +169,7 @@ def test_collect_and_store_keeps_local_save_when_r2_upload_fails(tmp_path: Path)
         fetched_at=fetched_at,
     )
 
-    assert results[0]["local_path"] == tmp_path / "2026-06-26" / "강남역_151800.json"
+    assert results[0]["local_path"] == tmp_path / "2026-06-26" / "강남역.json"
     assert results[0]["local_path"].exists()
     assert results[0]["r2_key"] is None
     assert "r2 upload failed" in results[0]["error"]

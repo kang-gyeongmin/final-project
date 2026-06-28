@@ -24,8 +24,15 @@ def load_areas(path: Path) -> list[str]:
 def save_raw(base_dir: Path, area_name: str, fetched_at: datetime, payload: dict) -> Path:
     day_dir = Path(base_dir) / fetched_at.strftime("%Y-%m-%d")
     day_dir.mkdir(parents=True, exist_ok=True)
-    file_path = day_dir / f"{area_name}_{fetched_at.strftime('%H%M%S')}.json"
-    file_path.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
+    file_path = day_dir / f"{area_name}.json"
+
+    if file_path.exists():
+        entries = json.loads(file_path.read_text(encoding="utf-8"))
+    else:
+        entries = []
+
+    entries.append({"fetched_at": fetched_at.isoformat(), "payload": payload})
+    file_path.write_text(json.dumps(entries, ensure_ascii=False), encoding="utf-8")
     return file_path
 
 
@@ -74,7 +81,10 @@ def collect_and_store(
             continue
 
         local_path = save_raw(base_dir=base_dir, area_name=area_name, fetched_at=timestamp, payload=payload)
-        r2_key = f"raw/{timestamp.strftime('%Y-%m-%d')}/{area_name}_{timestamp.strftime('%H%M%S')}.json"
+        r2_key = (
+            f"raw/{timestamp.strftime('%Y-%m-%d')}/{timestamp.strftime('%H')}"
+            f"/{timestamp.strftime('%M')}/{area_name}.json"
+        )
 
         try:
             upload_json(r2_client, bucket=r2_bucket, key=r2_key, payload=payload)
