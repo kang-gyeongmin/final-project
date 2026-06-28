@@ -1,0 +1,22 @@
+name: seoul_ppltn
+version: "1.0.0"
+config-version: 2
+
+profile: seoul_ppltn
+
+flags:
+  require_certificate_validation: true
+
+model-paths: ["models"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+test-paths: ["tests"]
+
+target-path: target
+clean-targets:
+  - target
+  - dbt_packages
+
+models:
+  seoul_ppltn:
+    +materialized: table

@@ -8,4 +8,6 @@ USER airflow
 RUN pip install --no-cache-dir \
         "boto3>=1.26,<2" \
         "requests>=2.31,<3" \
-        "python-dotenv>=1.0,<2"
+        "python-dotenv>=1.0,<2" \
+        "trino>=0.20,<1" \
+        "dbt-trino>=1.5,<2"

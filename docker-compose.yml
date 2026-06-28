@@ -25,11 +25,20 @@ x-airflow-common: &airflow-common
     R2_ACCESS_KEY_ID: ${R2_ACCESS_KEY_ID}
     R2_SECRET_ACCESS_KEY: ${R2_SECRET_ACCESS_KEY}
     R2_BUCKET_NAME: ${R2_BUCKET_NAME}
+    R2_ENDPOINT: ${R2_ENDPOINT}
+    DBT_PROFILES_DIR: /opt/airflow/dbt/seoul_ppltn
+    DBT_PROJECT_DIR: /opt/airflow/dbt/seoul_ppltn
+    TRINO_HOST: trino
+    TRINO_PORT: "8080"
+    TRINO_USER: airflow
+    TRINO_ICEBERG_CATALOG: iceberg
+    SMOKE_SCHEMA: seoul_ppltn
   user: "${AIRFLOW_UID}:0"
   volumes:
-    - ./dags:/opt/airflow/dags:ro
+    - ./dags:/opt/airflow/dags
     - ./collectors:/opt/airflow/project/collectors
     - ./data:/opt/airflow/project/data
+    - ./dbt:/opt/airflow/dbt
     - airflow_logs:/opt/airflow/logs
   networks:
     - seoul_net
@@ -51,6 +60,23 @@ services:
       timeout: 5s
       retries: 5
       start_period: 10s
+    networks:
+      - seoul_net
+
+  trino:
+    image: trinodb/trino:latest
+    env_file:
+      - .env
+    volumes:
+      - ./trino/catalog:/etc/trino/catalog:ro
+    ports:
+      - "8081:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "trino --execute 'SELECT 1' >/dev/null 2>&1 || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
     networks:
       - seoul_net
 
@@ -103,6 +129,8 @@ services:
       airflow-init:
         condition: service_completed_successfully
       airflow-apiserver:
+        condition: service_healthy
+      trino:
         condition: service_healthy
 
   airflow-dag-processor:

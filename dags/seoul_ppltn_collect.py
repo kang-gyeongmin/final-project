@@ -5,6 +5,7 @@ from datetime import datetime
 from pathlib import Path
 
 from airflow import DAG
+from airflow.operators.bash import BashOperator
 from airflow.operators.python import PythonOperator
 
 from collectors.r2_storage import get_r2_client
@@ -70,3 +71,23 @@ with DAG(
         task_id="collect_and_store",
         python_callable=run_collect_and_store,
     )
+
+    dbt_run_task = BashOperator(
+        task_id="dbt_run",
+        bash_command=(
+            "cd /opt/airflow/dbt/seoul_ppltn && "
+            "DBT_PROFILES_DIR=/opt/airflow/dbt/seoul_ppltn "
+            "dbt run --target dev --no-use-colors"
+        ),
+    )
+
+    dbt_test_task = BashOperator(
+        task_id="dbt_test",
+        bash_command=(
+            "cd /opt/airflow/dbt/seoul_ppltn && "
+            "DBT_PROFILES_DIR=/opt/airflow/dbt/seoul_ppltn "
+            "dbt test --target dev --no-use-colors"
+        ),
+    )
+
+    collect_task >> dbt_run_task >> dbt_test_task

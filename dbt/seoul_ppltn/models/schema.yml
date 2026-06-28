@@ -1,0 +1,42 @@
+version: 2
+
+sources:
+  - name: bronze
+    description: 원본 인구혼잡도 데이터 (Trino Bronze에서 로드)
+    database: iceberg
+    schema: seoul_ppltn
+    tables:
+      - name: bronze_seoul_ppltn
+        description: 서울시 실시간 인구혼잡도 원본
+        columns:
+          - name: area_nm
+            description: 장소명
+          - name: area_cd
+            description: 장소 코드
+          - name: area_congest_lvl
+            description: 혼잡도 수준 (여유/보통/혼잡/매우혼잡)
+          - name: area_ppltn_min
+            description: 추정 최소 인구
+          - name: area_ppltn_max
+            description: 추정 최대 인구
+          - name: ppltn_time
+            description: 데이터 수집 시간
+
+models:
+  - name: silver_seoul_ppltn
+    description: 정제된 인구혼잡도 데이터 (중복 제거)
+    columns:
+      - name: area_nm
+      - name: area_cd
+      - name: area_congest_lvl
+      - name: ppltn_time
+      - name: area_ppltn_min
+      - name: area_ppltn_max
+
+  - name: gold_seoul_ppltn_by_time
+    description: 시간별 장소 인구혼잡도 분석
+    columns:
+      - name: ppltn_time
+      - name: area_nm
+      - name: area_congest_lvl
+      - name: avg_ppltn
