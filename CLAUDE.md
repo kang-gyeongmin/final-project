@@ -20,7 +20,7 @@
 ## 아키텍처
 
 ```
-[Scheduler] --(5~10분 주기)--> [Collector/Worker] --raw--> [Cloudflare R2]
+[Scheduler] --(5분 주기)--> [Collector/Worker] --raw--> [Cloudflare R2]
                                                                   |
                                                            [Processor]
                                                                   |
