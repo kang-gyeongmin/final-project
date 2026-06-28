@@ -31,7 +31,7 @@
                                                           사용자 질문 -> 응답
 ```
 
-- **Collector**: Airflow(Docker Compose, LocalExecutor)가 5분마다(`*/5 * * * *`) `dags/seoul_ppltn_collect.py` DAG를 실행. 121개 장소를 순회하며 원본 응답을 로컬(`data/raw/`)과 Cloudflare R2(`raw/`)에 함께 적재. R2 업로드 실패는 장소 단위로 격리되어 다른 장소 수집을 막지 않음.
+- **Collector**: Airflow(Docker Compose, LocalExecutor)가 5분마다(`*/5 * * * *`) `dags/seoul_ppltn_collect.py` DAG를 실행. `collectors/areas.txt`에 등록된 장소(현재 118곳)를 순회하며 원본 응답을 로컬(`data/raw/`)과 Cloudflare R2(`raw/`)에 함께 적재. R2 업로드 실패는 장소 단위로 격리되어 다른 장소 수집을 막지 않음.
 - **Processor**: R2에 쌓인 원본 데이터를 정제/정규화하여 DuckDB에 분석 가능한 테이블로 적재.
 - **API 서버**: Python FastAPI 기반. DuckDB를 조회하여 사용자 질문에 응답.
   자연어 질의 응답을 위한 LLM 연동 방식은 **미정**(추후 결정 사항).
