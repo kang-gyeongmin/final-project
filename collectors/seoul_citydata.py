@@ -32,7 +32,7 @@ def save_raw(base_dir: Path, area_name: str, fetched_at: datetime, payload: dict
         entries = []
 
     entries.append({"fetched_at": fetched_at.isoformat(), "payload": payload})
-    file_path.write_text(json.dumps(entries, ensure_ascii=False), encoding="utf-8")
+    file_path.write_text(json.dumps(entries, ensure_ascii=False, indent=2), encoding="utf-8")
     return file_path
 
 

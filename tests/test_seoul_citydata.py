@@ -63,9 +63,11 @@ def test_save_raw_creates_file_with_single_entry_when_new(tmp_path: Path):
     )
 
     assert result_path == tmp_path / "2026-06-26" / "광화문·덕수궁.json"
-    assert json.loads(result_path.read_text(encoding="utf-8")) == [
+    written_text = result_path.read_text(encoding="utf-8")
+    assert json.loads(written_text) == [
         {"fetched_at": "2026-06-26T15:18:00", "payload": payload}
     ]
+    assert "\n" in written_text
 
 
 def test_save_raw_appends_entry_when_file_already_exists(tmp_path: Path):
