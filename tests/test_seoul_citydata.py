@@ -2,7 +2,7 @@ import json
 from datetime import datetime
 from pathlib import Path
 
-from collectors.seoul_citydata import build_url, collect_all, fetch, load_areas, save_raw
+from collectors.seoul_citydata import build_url, collect_all, collect_and_store, fetch, load_areas, save_raw
 
 
 class FakeResponse:
@@ -88,3 +88,93 @@ def test_load_areas_skips_comments_and_blank_lines(tmp_path: Path):
     result = load_areas(areas_file)
 
     assert result == ["광화문·덕수궁", "강남역"]
+
+
+class FakeR2Client:
+    def __init__(self, fail_keys=None):
+        self.put_calls = []
+        self.fail_keys = fail_keys or set()
+
+    def put_object(self, **kwargs):
+        if kwargs["Key"] in self.fail_keys:
+            raise RuntimeError(f"r2 upload failed for {kwargs['Key']}")
+        self.put_calls.append(kwargs)
+
+
+def test_collect_and_store_saves_locally_and_uploads_to_r2(tmp_path: Path):
+    def fake_get(url, timeout):
+        return FakeResponse({"url": url})
+
+    fetched_at = datetime(2026, 6, 26, 15, 18, 0)
+    r2_client = FakeR2Client()
+
+    results = collect_and_store(
+        area_names=["강남역", "광화문·덕수궁"],
+        api_key="sample",
+        base_dir=tmp_path,
+        r2_client=r2_client,
+        r2_bucket="my-bucket",
+        http_get=fake_get,
+        fetched_at=fetched_at,
+    )
+
+    assert results == [
+        {
+            "area_name": "강남역",
+            "local_path": tmp_path / "2026-06-26" / "강남역_151800.json",
+            "r2_key": "raw/2026-06-26/강남역_151800.json",
+            "error": None,
+        },
+        {
+            "area_name": "광화문·덕수궁",
+            "local_path": tmp_path / "2026-06-26" / "광화문·덕수궁_151800.json",
+            "r2_key": "raw/2026-06-26/광화문·덕수궁_151800.json",
+            "error": None,
+        },
+    ]
+    assert len(r2_client.put_calls) == 2
+
+
+def test_collect_and_store_keeps_local_save_when_r2_upload_fails(tmp_path: Path):
+    def fake_get(url, timeout):
+        return FakeResponse({"url": url})
+
+    fetched_at = datetime(2026, 6, 26, 15, 18, 0)
+    r2_client = FakeR2Client(fail_keys={"raw/2026-06-26/강남역_151800.json"})
+
+    results = collect_and_store(
+        area_names=["강남역"],
+        api_key="sample",
+        base_dir=tmp_path,
+        r2_client=r2_client,
+        r2_bucket="my-bucket",
+        http_get=fake_get,
+        fetched_at=fetched_at,
+    )
+
+    assert results[0]["local_path"] == tmp_path / "2026-06-26" / "강남역_151800.json"
+    assert results[0]["local_path"].exists()
+    assert results[0]["r2_key"] is None
+    assert "r2 upload failed" in results[0]["error"]
+
+
+def test_collect_and_store_skips_area_when_fetch_fails(tmp_path: Path):
+    def fake_get(url, timeout):
+        raise RuntimeError("network down")
+
+    r2_client = FakeR2Client()
+
+    results = collect_and_store(
+        area_names=["강남역"],
+        api_key="sample",
+        base_dir=tmp_path,
+        r2_client=r2_client,
+        r2_bucket="my-bucket",
+        http_get=fake_get,
+        fetched_at=datetime(2026, 6, 26, 15, 18, 0),
+    )
+
+    assert results == [
+        {"area_name": "강남역", "local_path": None, "r2_key": None, "error": "network down"}
+    ]
+    assert r2_client.put_calls == []

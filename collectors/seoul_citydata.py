@@ -5,6 +5,8 @@ from urllib.parse import quote
 
 import requests
 
+from collectors.r2_storage import upload_json
+
 BASE_URL = "http://openapi.seoul.go.kr:8088"
 SERVICE_NAME = "citydata_ppltn"
 
@@ -49,3 +51,40 @@ def collect_all(
             save_raw(base_dir=base_dir, area_name=area_name, fetched_at=timestamp, payload=payload)
         )
     return saved_paths
+
+
+def collect_and_store(
+    area_names: list[str],
+    api_key: str,
+    base_dir: Path,
+    r2_client,
+    r2_bucket: str,
+    http_get=requests.get,
+    fetched_at: datetime | None = None,
+) -> list[dict]:
+    timestamp = fetched_at or datetime.now()
+    results = []
+    for area_name in area_names:
+        try:
+            payload = fetch(area_name=area_name, api_key=api_key, http_get=http_get)
+        except Exception as exc:
+            results.append(
+                {"area_name": area_name, "local_path": None, "r2_key": None, "error": str(exc)}
+            )
+            continue
+
+        local_path = save_raw(base_dir=base_dir, area_name=area_name, fetched_at=timestamp, payload=payload)
+        r2_key = f"raw/{timestamp.strftime('%Y-%m-%d')}/{area_name}_{timestamp.strftime('%H%M%S')}.json"
+
+        try:
+            upload_json(r2_client, bucket=r2_bucket, key=r2_key, payload=payload)
+        except Exception as exc:
+            results.append(
+                {"area_name": area_name, "local_path": local_path, "r2_key": None, "error": str(exc)}
+            )
+            continue
+
+        results.append(
+            {"area_name": area_name, "local_path": local_path, "r2_key": r2_key, "error": None}
+        )
+    return results
