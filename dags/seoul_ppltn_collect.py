@@ -43,13 +43,20 @@ def run_collect_and_store() -> None:
         r2_bucket=r2_bucket,
     )
 
-    succeeded = [r for r in results if r["error"] is None]
-    failed = [r for r in results if r["error"] is not None]
-    for r in failed:
-        logger.warning("collect failed for %s: %s", r["area_name"], r["error"])
-    logger.info("collected %d/%d areas successfully", len(succeeded), len(results))
+    collected = [r for r in results if r["local_path"] is not None]
+    not_collected = [r for r in results if r["local_path"] is None]
+    r2_failed = [r for r in results if r["local_path"] is not None and r["error"] is not None]
 
-    if not succeeded:
+    for r in not_collected:
+        logger.warning("collect failed for %s: %s", r["area_name"], r["error"])
+    for r in r2_failed:
+        logger.warning("r2 upload failed for %s: %s", r["area_name"], r["error"])
+    logger.info(
+        "collected %d/%d areas successfully (R2 upload failed for %d)",
+        len(collected), len(results), len(r2_failed),
+    )
+
+    if not collected:
         raise RuntimeError(f"all {len(results)} areas failed to collect")
 
 
