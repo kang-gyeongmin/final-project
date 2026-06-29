@@ -17,3 +17,9 @@ data/raw/
 
 # Local Claude Code settings
 .claude/
+
+# dbt build artifacts
+dbt/seoul_ppltn/target/
+dbt/seoul_ppltn/dbt_packages/
+dbt/seoul_ppltn/logs/
+dbt/seoul_ppltn/.user.yml
