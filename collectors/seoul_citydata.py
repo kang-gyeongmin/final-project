@@ -90,7 +90,6 @@ def _batch_insert_to_bronze(batch_data: list[dict]) -> None:
             replace_yn varchar,
             ppltn_time varchar,
             fcst_yn varchar,
-            raw_file_path varchar,
             ingested_at varchar
         )
         WITH (format = 'PARQUET')
@@ -123,7 +122,6 @@ def _batch_insert_to_bronze(batch_data: list[dict]) -> None:
             "replace_yn": _sql_string(area_data.get("REPLACE_YN", "")),
             "ppltn_time": _sql_string(area_data.get("PPLTN_TIME", "")),
             "fcst_yn": _sql_string(area_data.get("FCST_YN", "")),
-            "raw_file_path": _sql_string(item["raw_file_path"]),
             "ingested_at": _sql_string(item["ingested_at"]),
         }
         values_list.append(
@@ -135,7 +133,7 @@ def _batch_insert_to_bronze(batch_data: list[dict]) -> None:
             f"{values['ppltn_rate_60']}, {values['ppltn_rate_70']}, "
             f"{values['resnt_ppltn_rate']}, {values['non_resnt_ppltn_rate']}, "
             f"{values['replace_yn']}, {values['ppltn_time']}, {values['fcst_yn']}, "
-            f"{values['raw_file_path']}, {values['ingested_at']})"
+            f"{values['ingested_at']})"
         )
 
     # 한 번에 INSERT!
@@ -191,7 +189,6 @@ def collect_and_store(
                 area_data = data_list[0]
                 batch_data.append({
                     "area_data": area_data,
-                    "raw_file_path": str(local_path),
                     "ingested_at": timestamp.isoformat(),
                 })
         except Exception:

@@ -21,7 +21,6 @@ with bronze as (
         cast(replace_yn as varchar) as replace_yn,
         cast(ppltn_time as varchar) as ppltn_time,
         cast(fcst_yn as varchar) as fcst_yn,
-        cast(raw_file_path as varchar) as raw_file_path,
         cast(ingested_at as varchar) as ingested_at
     from {{ source('bronze', 'bronze_seoul_ppltn') }}
 ),
@@ -61,7 +60,6 @@ select
     replace_yn,
     ppltn_time,
     fcst_yn,
-    raw_file_path,
     ingested_at
 from ranked
 where row_num = 1
