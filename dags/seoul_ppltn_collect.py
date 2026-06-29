@@ -3,6 +3,7 @@ import logging
 import os
 from datetime import datetime
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 from airflow import DAG
 from airflow.operators.bash import BashOperator
@@ -12,6 +13,8 @@ from collectors.r2_storage import get_r2_client
 from collectors.seoul_citydata import collect_and_store, load_areas
 
 logger = logging.getLogger(__name__)
+
+KST = ZoneInfo("Asia/Seoul")
 
 PROJECT_ROOT = Path("/opt/airflow/project")
 AREAS_FILE = PROJECT_ROOT / "collectors" / "areas.txt"
@@ -42,6 +45,7 @@ def run_collect_and_store() -> None:
         base_dir=RAW_DATA_DIR,
         r2_client=r2_client,
         r2_bucket=r2_bucket,
+        fetched_at=datetime.now(KST),
     )
 
     collected = [r for r in results if r["local_path"] is not None]
