@@ -169,7 +169,7 @@ def collect_and_store(
 
         local_path = save_raw(base_dir=base_dir, area_name=area_name, fetched_at=timestamp, payload=payload)
         r2_key = (
-            f"raw/{timestamp.strftime('%Y-%m-%d')}/{timestamp.strftime('%H')}"
+            f"bronze/population/{timestamp.strftime('%Y-%m-%d')}/{timestamp.strftime('%H')}"
             f"/{timestamp.strftime('%M')}/{area_name}.json"
         )
 

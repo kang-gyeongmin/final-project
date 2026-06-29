@@ -118,13 +118,13 @@ def test_collect_and_store_saves_locally_and_uploads_to_r2(tmp_path: Path):
         {
             "area_name": "강남역",
             "local_path": tmp_path / "2026-06-26" / "강남역.jsonl",
-            "r2_key": "raw/2026-06-26/15/18/강남역.json",
+            "r2_key": "bronze/population/2026-06-26/15/18/강남역.json",
             "error": None,
         },
         {
             "area_name": "광화문·덕수궁",
             "local_path": tmp_path / "2026-06-26" / "광화문·덕수궁.jsonl",
-            "r2_key": "raw/2026-06-26/15/18/광화문·덕수궁.json",
+            "r2_key": "bronze/population/2026-06-26/15/18/광화문·덕수궁.json",
             "error": None,
         },
     ]
@@ -136,7 +136,7 @@ def test_collect_and_store_keeps_local_save_when_r2_upload_fails(tmp_path: Path)
         return FakeResponse({"url": url})
 
     fetched_at = datetime(2026, 6, 26, 15, 18, 0)
-    r2_client = FakeR2Client(fail_keys={"raw/2026-06-26/15/18/강남역.json"})
+    r2_client = FakeR2Client(fail_keys={"bronze/population/2026-06-26/15/18/강남역.json"})
 
     results = collect_and_store(
         area_names=["강남역"],
